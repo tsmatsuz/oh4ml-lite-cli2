@@ -4,8 +4,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import json
 import joblib
+import argparse
 
 from pandas import Grouper
 from statsmodels.graphics.tsaplots import plot_acf
@@ -15,30 +15,18 @@ from sklearn.metrics import r2_score
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.arima_model import ARIMA
 
-from azureml.core import Dataset, Run
-from azureml.core.model import Model
-
-# ここ、今はダミー !!!!
-import argparse
+# parse argument
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--step1_output',
+    '--data_file',
     type=str)
+parser.add_argument(
+    '--model_folder',
+    type=str,
+    default='./outputs',)
 FLAGS, unparsed = parser.parse_known_args()
-model_info_dict = {'model_name' : 'arima_model.pkl'}
-model_info_json = json.dumps(model_info_dict)
-f = open(FLAGS.step1_output,"w")
-f.write(model_info_json)
-f.close()
 
-run = Run.get_context()
-run_id = run.id
-# get input dataset by name
-#dataset = run.input_datasets['transaction_ts']
-
-ws = run.experiment.workspace
-dataset1 = Dataset.get_by_name(workspace=ws, name='transaction_ts2013')
-df = dataset1.to_pandas_dataframe()
+df = pd.read_csv(FLAGS.data_file)
 
 df.set_index('TransactionDate',inplace=True)
 df.columns = ['PaidAmount']
@@ -98,24 +86,17 @@ plt.plot(predictions, color='red')
 plt.title("Test Data Vs. Predictions")
 plt.show()
 
-run.log('RMSE', rmse)
-run.log('R2', r2)
-
 model_file_name = 'arima_model.pkl'
 
-os.makedirs('./outputs', exist_ok=True)
+os.makedirs(FLAGS.model_folder, exist_ok=True)
 with open(model_file_name, 'wb') as file:
-    joblib.dump(value=model_fit, filename='outputs/' + model_file_name)
+    model_path = os.path.join(FLAGS.model_folder, model_file_name)
+    joblib.dump(
+        value=model_fit,
+        filename=model_path)
 
-model = Model.register(
-    model_path= './outputs/'+ model_file_name,  # this points to a local file
-    model_name=model_file_name,  # this is the name the model is registered as
-    tags={"area": "robberies", "type": "forecasting", "run_id": run_id, "R2": r2},
-    description="Time series forecasting model for Adventure Works dataset",
-    workspace=ws,
-)
 print(
-    "Model registered: {} \nModel Description: {} \nModel Version: {}".format(
-        model.name, model.description, model.version
+    "Model saved: {}".format(
+        model_path
     )
 )

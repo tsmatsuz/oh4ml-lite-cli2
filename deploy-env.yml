@@ -1,9 +1,0 @@
-name: arima-env
-dependencies:
-- python=3.6.9
-
-- pip:
-  - azureml-defaults
-channels:
-- anaconda
-- conda-forge

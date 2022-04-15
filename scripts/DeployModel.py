@@ -1,14 +1,26 @@
-import os, json, datetime, sys
+import os, json, datetime, sys, argparse
 from azureml.core import Workspace, Environment, Run
 
 from azureml.core.model import InferenceConfig, Model
 from azureml.core.webservice import AciWebservice, Webservice
 from azureml.core.environment import Environment
 
+# parse argument
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '--model_folder',
+    type=str)
+FLAGS, unparsed = parser.parse_known_args()
+
 run = Run.get_context()
 ws = run.experiment.workspace
 
-model = Model(ws, 'arima_model.pkl') 
+model = Model.register(
+    model_path= os.path.join(FLAGS.model_folder,"arima_model.pkl"),
+    model_name='arima_model_pipeline',  # this is the name the model is registered as
+    description="Time series forecasting model for Adventure Works dataset",
+    workspace=ws,
+)
 
 myenv = Environment.from_conda_specification(name="arima-env", file_path="./arima-env.yml")
 inference_config = InferenceConfig(entry_script="score.py", environment=myenv)
